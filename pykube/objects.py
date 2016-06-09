@@ -4,6 +4,7 @@ import time
 
 import jsonpatch
 
+from six.moves.urllib.parse import urlencode
 from .exceptions import ObjectDoesNotExist
 from .query import ObjectManager
 
@@ -45,6 +46,15 @@ class APIObject(object):
         kw["version"] = self.version
         if self.namespace is not None:
             kw["namespace"] = self.namespace
+
+        subcommand = kwargs.pop('subcommand', None)
+        if subcommand:
+            kw['url'] = "{}/{}".format(kw['url'], subcommand)
+
+        query_params = kwargs.pop('query_params', None)
+        if query_params:
+            query_params = urlencode(query_params)
+            kw['url'] = "{}?{}".format(kw['url'], query_params)
         kw.update(kwargs)
         return kw
 
@@ -193,6 +203,38 @@ class Pod(NamespacedAPIObject):
         cs = self.obj["status"]["conditions"]
         condition = next((c for c in cs if c["type"] == "Ready"), None)
         return condition is not None and condition["status"] == "True"
+
+    def execute(
+        self,
+        command,
+        stdin=None,
+        stdout=None,
+        stderr=None,
+        tty=None,
+        container=None,
+    ):
+        params = {}
+        params['command'] = str(command)
+        if stdin is not None:
+            params['stdin'] = str(stdin).lower()
+        if stdout is not None:
+            params['stdout'] = str(stdout).lower()
+        if stderr is not None:
+            params['stderr'] = str(stderr).lower()
+        if tty is not None:
+            params['tty'] = tty
+        if container is not None:
+            params['container'] = container
+
+        response = self.api.get(
+            **self.api_kwargs(
+                subcommand='exec',
+                query_params=params
+            )
+        )
+
+        response.raise_for_status()
+        return response.text
 
 
 class ReplicationController(NamespacedAPIObject, ReplicatedAPIObject):
