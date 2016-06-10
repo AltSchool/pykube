@@ -204,31 +204,38 @@ class Pod(NamespacedAPIObject):
         condition = next((c for c in cs if c["type"] == "Ready"), None)
         return condition is not None and condition["status"] == "True"
 
-    def execute(
+    def logs(
         self,
-        command,
-        stdin=None,
-        stdout=None,
-        stderr=None,
-        tty=None,
         container=None,
+        pretty=None,
+        previous=None,
+        since_seconds=None,
+        since_time=None,
+        timestamps=None,
+        tail_lines=None,
+        limit_bytes=None
     ):
         params = {}
-        params['command'] = str(command)
-        if stdin is not None:
-            params['stdin'] = str(stdin).lower()
-        if stdout is not None:
-            params['stdout'] = str(stdout).lower()
-        if stderr is not None:
-            params['stderr'] = str(stderr).lower()
-        if tty is not None:
-            params['tty'] = tty
         if container is not None:
             params['container'] = container
+        if pretty is not None:
+            params['pretty'] = str(pretty).lower()
+        if previous:
+            params['previous'] = str(previous).lower()
+        if since_seconds is not None and since_time is None:
+            params['sinceSeconds'] = int(since_seconds)
+        if since_time is not None and since_seconds is None:
+            params['sinceTime'] = since_time
+        if timestamps is not None:
+            params['timestamps'] = str(timestamps).lower()
+        if tail_lines is not None:
+            params['tailLines'] = int(tail_lines)
+        if limit_bytes is not None:
+            params['limitBytes'] = int(limit_bytes)
 
         response = self.api.get(
             **self.api_kwargs(
-                subcommand='exec',
+                subcommand='log',
                 query_params=params
             )
         )
