@@ -4,6 +4,7 @@ import time
 
 import jsonpatch
 
+from six.moves.urllib.parse import urlencode
 from .exceptions import ObjectDoesNotExist
 from .query import ObjectManager
 
@@ -45,6 +46,15 @@ class APIObject(object):
         kw["version"] = self.version
         if self.namespace is not None:
             kw["namespace"] = self.namespace
+
+        subcommand = kwargs.pop('subcommand', None)
+        if subcommand:
+            kw['url'] = "{}/{}".format(kw['url'], subcommand)
+
+        query_params = kwargs.pop('query_params', None)
+        if query_params:
+            query_params = urlencode(query_params)
+            kw['url'] = "{}?{}".format(kw['url'], query_params)
         kw.update(kwargs)
         return kw
 
@@ -193,6 +203,45 @@ class Pod(NamespacedAPIObject):
         cs = self.obj["status"]["conditions"]
         condition = next((c for c in cs if c["type"] == "Ready"), None)
         return condition is not None and condition["status"] == "True"
+
+    def logs(
+        self,
+        container=None,
+        pretty=None,
+        previous=None,
+        since_seconds=None,
+        since_time=None,
+        timestamps=None,
+        tail_lines=None,
+        limit_bytes=None
+    ):
+        params = {}
+        if container is not None:
+            params['container'] = container
+        if pretty is not None:
+            params['pretty'] = str(pretty).lower()
+        if previous:
+            params['previous'] = str(previous).lower()
+        if since_seconds is not None and since_time is None:
+            params['sinceSeconds'] = int(since_seconds)
+        if since_time is not None and since_seconds is None:
+            params['sinceTime'] = since_time
+        if timestamps is not None:
+            params['timestamps'] = str(timestamps).lower()
+        if tail_lines is not None:
+            params['tailLines'] = int(tail_lines)
+        if limit_bytes is not None:
+            params['limitBytes'] = int(limit_bytes)
+
+        response = self.api.get(
+            **self.api_kwargs(
+                subcommand='log',
+                query_params=params
+            )
+        )
+
+        response.raise_for_status()
+        return response.text
 
 
 class ReplicationController(NamespacedAPIObject, ReplicatedAPIObject):
