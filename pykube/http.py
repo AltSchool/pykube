@@ -2,6 +2,7 @@
 HTTP request related code.
 """
 
+import os
 import posixpath
 import re
 import sys
@@ -39,7 +40,11 @@ class HTTPClient(object):
     @url.setter
     def url(self, value):
         pr = urlparse(value)
-        if sys.version_info < (3, 5) and ("::" in pr.hostname or _ipv4_re.match(pr.hostname)):
+        if (
+            os.environ.get('PYKUBE_IP_HOSTNAME_WARNING') and
+            sys.version_info < (3, 5) and
+            ("::" in pr.hostname or _ipv4_re.match(pr.hostname))
+        ):
             warnings.warn("IP address hostnames are not supported with Python < 3.5. Please see https://github.com/kelproject/pykube/issues/29 for more info.", RuntimeWarning)
         self._url = pr.geturl()
 
